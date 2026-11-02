@@ -31,6 +31,11 @@ class TreelScanner extends ChangeNotifier {
   TreelScanner(this.model);
 
   final TreelModel model;
+  final Set<String> _teslaConnecting = {};
+  final Map<String, DateTime> _teslaLastPoll = {};
+  static const _teslaService = '00000211-b2d1-43f0-9b88-960cebf8b91e';
+  static const _teslaWrite = '00000212-b2d1-43f0-9b88-960cebf8b91e';
+  static const _teslaIndicate = '00000213-b2d1-43f0-9b88-960cebf8b91e';
 
   static const _protocolPreference = 'sensorProtocol';
   SensorProtocol _protocol = SensorProtocol.automatic;
@@ -232,10 +237,25 @@ class TreelScanner extends ChangeNotifier {
   }
 
   void _onDevice(BleDevice device) {
+    final manufacturerData = {
+      for (final m in device.manufacturerDataList) m.companyId: m.payload,
+    };
+    final teslaFrame = manufacturerData[teslaManufacturerId];
+    final isTesla = isTeslaTpmsAdvertisement(teslaFrame) ||
+        device.name?.trim() == 'tsTPMS';
+    if (isTesla && (_protocol == SensorProtocol.automatic ||
+        _protocol == SensorProtocol.tesla)) {
+      final reading = decodeTeslaAdvertisement(
+        manufacturerData,
+        rssi: device.rssi ?? -127,
+        deviceId: device.deviceId,
+      );
+      if (reading != null) model.ingest(reading);
+      _pollTesla(device);
+      return;
+    }
     final reading = decodeSensor(
-      {
-        for (final m in device.manufacturerDataList) m.companyId: m.payload,
-      },
+      manufacturerData,
       rssi: device.rssi ?? -127,
       protocol: _protocol,
       name: device.name,
@@ -243,6 +263,89 @@ class TreelScanner extends ChangeNotifier {
       services: device.services,
     );
     if (reading != null) model.ingest(reading);
+  }
+
+  void _pollTesla(BleDevice device) {
+    final now = DateTime.now();
+    final last = _teslaLastPoll[device.deviceId];
+    if (_teslaConnecting.contains(device.deviceId) ||
+        (last != null && now.difference(last) < const Duration(seconds: 25))) {
+      return;
+    }
+    _teslaConnecting.add(device.deviceId);
+    _teslaLastPoll[device.deviceId] = now;
+    unawaited(() async {
+      StreamSubscription? updates;
+      var connected = false;
+      try {
+        await device.connect().timeout(const Duration(seconds: 10));
+        connected = true;
+        final write = await device.getCharacteristic(_teslaWrite, service: _teslaService);
+        final indication = await device.getCharacteristic(
+          _teslaIndicate,
+          service: _teslaService,
+        );
+        Completer<TeslaTpmsPayload>? pending;
+        TeslaTpmsPayload? earlyReading;
+        updates = indication.onValueReceived.listen((bytes) {
+          final reading = decodeTeslaTpData(bytes);
+          if (reading == null) return;
+          final current = pending;
+          if (current != null && !current.isCompleted) {
+            current.complete(reading);
+          } else {
+            earlyReading = reading;
+          }
+        });
+        await indication.indications.subscribe();
+        TeslaTpmsPayload? result = earlyReading;
+        for (final request in teslaTpDataRequests) {
+          if (result != null) break;
+          pending = Completer<TeslaTpmsPayload>();
+          await write.write(request);
+          try {
+            result = await pending.future.timeout(
+              const Duration(milliseconds: 1200),
+            );
+          } on TimeoutException {
+            result = null;
+          }
+        }
+        if (result != null) {
+          final id = device.deviceId.toLowerCase().replaceAll(
+            RegExp(r'[^a-z0-9]'),
+            '',
+          );
+          model.ingest(
+            TreelReading(
+              sensorId: 'tesla-$id',
+              psi: result.psi,
+              celsius: result.celsius,
+              rssi: device.rssi ?? -127,
+              at: DateTime.now(),
+            ),
+          );
+        }
+      } catch (_) {
+      } finally {
+        await updates?.cancel();
+        try {
+          final indication = await device.getCharacteristic(
+            _teslaIndicate,
+            service: _teslaService,
+          );
+          await indication.unsubscribe();
+        } catch (_) {
+        }
+        if (connected) {
+          try {
+            await device.disconnect();
+          } catch (_) {
+          }
+        }
+        _teslaConnecting.remove(device.deviceId);
+      }
+    }());
   }
 
   /// Re-check everything and start again. Used by pull to refresh, and it is

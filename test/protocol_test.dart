@@ -7,6 +7,58 @@ List<int> hex(String s) => [
 ];
 
 void main() {
+  test('recognises Tesla sleep advertisements without inventing readings', () {
+    final frame = hex('01FE03');
+    expect(isTeslaTpmsAdvertisement(frame), isTrue);
+    expect(
+      decodeTeslaAdvertisement(
+        {teslaManufacturerId: frame},
+        rssi: -60,
+        deviceId: 'tesla-sensor',
+      ),
+      isNull,
+    );
+  });
+
+  test('decodes Tesla awake advertisements', () {
+    final reading = decodeTeslaAdvertisement(
+      {teslaManufacturerId: hex('0102051E0245EA0B')},
+      rssi: -60,
+      deviceId: 'BC:6A:29:10:20:30',
+    );
+    expect(reading, isNotNull);
+    expect(reading!.sensorId, 'tesla-bc6a29102030');
+    expect(reading.psi, 64);
+    expect(reading.celsius, 19);
+  });
+
+  test('rejects truncated Tesla awake advertisements', () {
+    final frame = hex('0102051E02450B');
+    expect(isTeslaTpmsAdvertisement(frame), isFalse);
+    expect(
+      decodeTeslaAdvertisement(
+        {teslaManufacturerId: frame},
+        rssi: -60,
+        deviceId: 'BC:6A:29:10:20:30',
+      ),
+      isNull,
+    );
+  });
+
+  test('decodes Tesla TPData GATT indications', () {
+    final reading = decodeTeslaTpData(
+      hex('1208E20105089E041026'),
+    );
+    expect(reading, isNotNull);
+    expect(reading!.psi, 64);
+    expect(reading.celsius, 19);
+  });
+
+  test('builds Tesla TPData request candidates', () {
+    expect(teslaTpDataRequests.first, [0x08, 0x01]);
+    expect(teslaTpDataRequests, hasLength(8));
+  });
+
   test('decodes ZEEPIN TP630 manufacturer payload', () {
     final reading = decodeZeepin({
       0x0001: hex('80EACA108A78E36D0000E60A00005B00'),
