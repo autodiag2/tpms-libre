@@ -223,6 +223,11 @@ void main() {
       for (final row in ['Front axle', 'Watch if under by', 'Haptics']) {
         expectRole(tester, row, TypeScale.row);
       }
+      expectRole(
+        tester,
+        'Automatic detects supported broadcast formats.',
+        TypeScale.caption,
+      );
       await close(tester);
 
       await tester.tap(find.text('Weekend car'));
