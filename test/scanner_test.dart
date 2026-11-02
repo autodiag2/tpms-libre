@@ -43,11 +43,18 @@ class FakeBle extends UniversalBlePlatform {
     'calling: it only listens',
   );
 
-  void advertise(Map<int, List<int>> manufacturerData, {int rssi = -60}) {
+  void advertise(
+    Map<int, List<int>> manufacturerData, {
+    int rssi = -60,
+    String? name,
+    String deviceId = 'fake-sensor',
+    List<String> services = const [],
+  }) {
     updateScanResult(
       BleDevice(
-        deviceId: 'fake-sensor',
-        name: null,
+        deviceId: deviceId,
+        name: name,
+        services: services,
         rssi: rssi,
         manufacturerDataList: [
           for (final e in manufacturerData.entries)
@@ -114,6 +121,34 @@ void main() {
     });
     await settle();
     expect(heard(model, 'f10a02'), isNotNull);
+  });
+
+  test('a ZEEPIN broadcast becomes a reading automatically', () async {
+    await scanner.start();
+    await settle();
+    ble.advertise({
+      0x0001: hex('80EACA108A78E36D0000E60A00005B00'),
+    });
+    await settle();
+    final reading = heard(model, '80eaca108a78');
+    expect(reading, isNotNull);
+    expect(reading!.psi, 4);
+    expect(reading.celsius, 28);
+  });
+
+  test('a BR broadcast becomes a reading automatically', () async {
+    await scanner.start();
+    await settle();
+    ble.advertise(
+      {0x1d28: hex('130105A376')},
+      deviceId: 'ac:15:85:12:34:56',
+      services: [brServiceUuid],
+    );
+    await settle();
+    final reading = heard(model, 'br-ac1585123456');
+    expect(reading, isNotNull);
+    expect(reading!.psi, 12);
+    expect(reading.celsius, 19);
   });
 
   test('other devices are ignored', () async {

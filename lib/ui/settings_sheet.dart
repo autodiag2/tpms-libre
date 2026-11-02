@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../treel/model.dart';
+import '../treel/reading.dart';
 import 'theme.dart';
 
 /// Editing what "correct" means for this vehicle, and how the app feels.
@@ -21,6 +22,8 @@ class SettingsSheet extends StatefulWidget {
     required this.animations,
     required this.onHaptics,
     required this.onAnimations,
+    this.sensorProtocol = SensorProtocol.automatic,
+    this.onSensorProtocol,
   });
 
   /// The name the owner gave the vehicle these pressures belong to.
@@ -37,6 +40,8 @@ class SettingsSheet extends StatefulWidget {
   final bool animations;
   final ValueChanged<bool> onHaptics;
   final ValueChanged<bool> onAnimations;
+  final SensorProtocol sensorProtocol;
+  final ValueChanged<SensorProtocol>? onSensorProtocol;
 
   @override
   State<SettingsSheet> createState() => _SettingsSheetState();
@@ -202,6 +207,24 @@ class _SettingsSheetState extends State<SettingsSheet> {
       _Preview(spec: _spec, hasSpare: widget.layout.hasSpare),
     ];
     final feel = <Widget>[
+      DropdownButtonFormField<SensorProtocol>(
+        value: widget.sensorProtocol,
+        decoration: const InputDecoration(
+          labelText: 'TPMS sensor protocol',
+          helperText: 'Automatic detects supported broadcast formats.',
+        ),
+        items: [
+          for (final protocol in SensorProtocol.values)
+            DropdownMenuItem(
+              value: protocol,
+              child: Text(protocol.label),
+            ),
+        ],
+        onChanged: (protocol) {
+          if (protocol != null) widget.onSensorProtocol?.call(protocol);
+        },
+      ),
+
       SwitchListTile(
         contentPadding: EdgeInsets.zero,
         value: widget.haptics,

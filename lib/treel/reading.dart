@@ -111,3 +111,135 @@ TreelReading? decodeTreel(
     at: at ?? DateTime.now(),
   );
 }
+
+/// ZEEPIN / TP630 manufacturer company identifier.
+const int zeepinManufacturerId = 0x0001;
+
+/// BR TPMS advertises the 16-bit service UUID 0x27a5.
+const String brServiceUuid = '000027a5-0000-1000-8000-00805f9b34fb';
+
+/// Sensor protocol selection. Automatic uses advertisement signatures.
+enum SensorProtocol {
+  automatic('Automatic', 'automatic'),
+  treel('JK Tyre Treel', 'treel'),
+  zeepin('ZEEPIN / TP630', 'zeepin'),
+  br('BR', 'br');
+
+  const SensorProtocol(this.label, this.id);
+  final String label;
+  final String id;
+}
+
+/// Decode the ZEEPIN / TP630 manufacturer payload.
+///
+/// universal_ble separates the two-byte company id from this 16-byte value.
+/// Integer fields are little-endian, as in ra6070/BLE-TPMS.
+TreelReading? decodeZeepin(
+  Map<int, List<int>> manufacturerData, {
+  required int rssi,
+  DateTime? at,
+}) {
+  final frame = manufacturerData[zeepinManufacturerId];
+  if (frame == null || frame.length != 16) return null;
+  if (frame[0] < 0x80 || frame[0] > 0x8f) return null;
+  if (frame[1] != 0xea || frame[2] != 0xca) return null;
+
+  final pressureMilliKpa =
+      frame[6] | (frame[7] << 8) | (frame[8] << 16) | (frame[9] << 24);
+  final temperatureCenti =
+      frame[10] | (frame[11] << 8) | (frame[12] << 16) | (frame[13] << 24);
+  final pressureKpa = pressureMilliKpa / 1000.0;
+  final psi = (pressureKpa * 0.1450377377).round();
+  final celsius = (temperatureCenti / 100.0).round();
+  if (psi < 0 || psi > 200 || celsius < -50 || celsius > 150) return null;
+
+  return TreelReading(
+    sensorId: frame
+        .sublist(0, 6)
+        .map((b) => b.toRadixString(16).padLeft(2, '0'))
+        .join(),
+    psi: psi,
+    celsius: celsius,
+    rssi: rssi,
+    at: at ?? DateTime.now(),
+  );
+}
+
+/// Decode the BR advertisement documented by andi38/TPMS.
+///
+/// The Bluetooth company id is 0x1d28 and the manufacturer payload is five
+/// bytes. The upstream Python example reads temperature from byte 0 and
+/// pressure from bytes 1-2. The final two bytes are not validated because the
+/// repository does not document their checksum algorithm.
+TreelReading? decodeBr(
+  Map<int, List<int>> manufacturerData, {
+  required int rssi,
+  required String deviceId,
+  DateTime? at,
+}) {
+  final frame = manufacturerData[0x1d28];
+  if (frame == null || frame.length != 5) return null;
+
+  final celsius = frame[0];
+  final pressureRaw = (frame[1] << 8) | frame[2];
+  final pressureBar = (pressureRaw - 145) / 145.0;
+  final psi = (pressureBar * 14.503774).round();
+  if (psi < 0 || psi > 200 || celsius > 150) return null;
+
+  final stableId = deviceId.toLowerCase().replaceAll(
+    RegExp(r'[^a-z0-9]'),
+    '',
+  );
+  final sensorId = 'br-$stableId';
+  return TreelReading(
+    sensorId: sensorId,
+    psi: psi,
+    celsius: celsius,
+    rssi: rssi,
+    at: at ?? DateTime.now(),
+  );
+}
+
+/// Decode an advertisement using the selected or automatically detected
+/// sensor protocol.
+TreelReading? decodeSensor(
+  Map<int, List<int>> manufacturerData, {
+  required int rssi,
+  required SensorProtocol protocol,
+  required String deviceId,
+  String? name,
+  List<String> services = const [],
+  DateTime? at,
+}) {
+  switch (protocol) {
+    case SensorProtocol.treel:
+      return decodeTreel(manufacturerData, rssi: rssi, at: at);
+    case SensorProtocol.zeepin:
+      return decodeZeepin(manufacturerData, rssi: rssi, at: at);
+    case SensorProtocol.br:
+      return decodeBr(
+        manufacturerData,
+        rssi: rssi,
+        deviceId: deviceId,
+        at: at,
+      );
+    case SensorProtocol.automatic:
+      final treel = decodeTreel(manufacturerData, rssi: rssi, at: at);
+      if (treel != null) return treel;
+      final zeepin = decodeZeepin(manufacturerData, rssi: rssi, at: at);
+      if (zeepin != null) return zeepin;
+      final hasBrService = services.any(
+        (uuid) => uuid.toLowerCase() == brServiceUuid,
+      );
+      final hasBrManufacturer = manufacturerData[0x1d28]?.length == 5;
+      if (hasBrService || hasBrManufacturer || name == 'BR') {
+        return decodeBr(
+          manufacturerData,
+          rssi: rssi,
+          deviceId: deviceId,
+          at: at,
+        );
+      }
+      return null;
+  }
+}
