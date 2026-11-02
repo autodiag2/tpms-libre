@@ -1,7 +1,7 @@
 # TPMS Libre
 
-Tyre pressure and temperature from **JK Tyre Treel** Bluetooth TPMS sensors,
-offline. No account, no network access.
+Tyre pressure and temperature from Bluetooth TPMS sensors, offline. No
+account, no network access.
 
 The sensors broadcast their readings in the clear, yet the manufacturer's app
 wants a login, your photos and your crash logs.
@@ -103,10 +103,12 @@ described by the upstream project.
 BR uses service UUID `0x27a5`, company id `0x1d28`, and a five-byte
 manufacturer payload. The decoder follows the upstream Python example: byte 0
 is temperature, bytes 1–2 are pressure, converted with its documented
-`(raw - 145) / 145` bar formula. The final two bytes are not checked because
-the upstream repository does not document the checksum algorithm. The BLE
-device identifier is used as the sensor id because the advertisement payload
-does not contain a decoded sensor identifier.
+`(raw - 145) / 145` bar formula; bytes 3–4 are not checked because the
+upstream repository does not document the checksum algorithm. The upstream
+Python example derives battery voltage from the high byte of the company id;
+battery is not currently shown by this app. The BLE device identifier is used
+as the sensor id because the advertisement payload does not contain a decoded
+sensor identifier.
 
 ## Building
 
