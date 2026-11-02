@@ -27,6 +27,7 @@ Android 7 or later, on a phone with Bluetooth LE.
   CAR & BIKE* / *Treel Care* apps.
 - **ZEEPIN / TP630**: the BLE sensors decoded in [ra6070/BLE-TPMS](https://github.com/ra6070/BLE-TPMS).
 - **BR**: the BLE format documented in [andi38/TPMS](https://github.com/andi38/TPMS).
+- **Autel / Tesla**: [anufryieu/tesla-tpms-ble](https://github.com/anufryieu/tesla-tpms-ble)
 
 The app attempts to identify these formats from their advertisement signatures.
 Choose a protocol manually under Settings → TPMS sensor protocol when a
