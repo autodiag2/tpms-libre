@@ -167,11 +167,10 @@ TreelReading? decodeZeepin(
 
 /// Decode the BR advertisement documented by andi38/TPMS.
 ///
-/// The Bluetooth company id is 0x1d28 and the five-byte manufacturer payload
-/// is SS TT PPPP CCCC in the upstream example. The upstream Python decoder
-/// reads temperature from byte 0 and pressure from bytes 1-2. The final two
-/// bytes are not validated because the repository does not document their
-/// checksum algorithm.
+/// The Bluetooth company id is 0x1d28 and the manufacturer payload is five
+/// bytes. The upstream Python example reads temperature from byte 0 and
+/// pressure from bytes 1-2. The final two bytes are not validated because the
+/// repository does not document their checksum algorithm.
 TreelReading? decodeBr(
   Map<int, List<int>> manufacturerData, {
   required int rssi,
@@ -187,7 +186,11 @@ TreelReading? decodeBr(
   final psi = (pressureBar * 14.503774).round();
   if (psi < 0 || psi > 200 || celsius > 150) return null;
 
-  final sensorId = 'br-${deviceId.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '')}';
+  final stableId = deviceId.toLowerCase().replaceAll(
+    RegExp(r'[^a-z0-9]'),
+    '',
+  );
+  final sensorId = 'br-$stableId';
   return TreelReading(
     sensorId: sensorId,
     psi: psi,
