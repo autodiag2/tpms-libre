@@ -207,22 +207,31 @@ class _SettingsSheetState extends State<SettingsSheet> {
       _Preview(spec: _spec, hasSpare: widget.layout.hasSpare),
     ];
     final feel = <Widget>[
-      DropdownButtonFormField<SensorProtocol>(
-        value: widget.sensorProtocol,
-        decoration: const InputDecoration(
-          labelText: 'TPMS sensor protocol',
-          helperText: 'Automatic detects supported broadcast formats.',
+      SizedBox(
+        width: double.infinity,
+        child: DropdownButtonFormField<SensorProtocol>(
+          isExpanded: true,
+          value: widget.sensorProtocol,
+          decoration: const InputDecoration(
+            labelText: 'TPMS sensor protocol',
+            helperText: 'Automatic detects supported broadcast formats.',
+            helperStyle: TypeScale.caption,
+          ),
+          items: [
+            for (final protocol in SensorProtocol.values)
+              DropdownMenuItem(
+                value: protocol,
+                child: Text(
+                  protocol.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+          ],
+          onChanged: (protocol) {
+            if (protocol != null) widget.onSensorProtocol?.call(protocol);
+          },
         ),
-        items: [
-          for (final protocol in SensorProtocol.values)
-            DropdownMenuItem(
-              value: protocol,
-              child: Text(protocol.label),
-            ),
-        ],
-        onChanged: (protocol) {
-          if (protocol != null) widget.onSensorProtocol?.call(protocol);
-        },
       ),
 
       SwitchListTile(
