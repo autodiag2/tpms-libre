@@ -22,8 +22,8 @@ class SettingsSheet extends StatefulWidget {
     required this.animations,
     required this.onHaptics,
     required this.onAnimations,
-    required this.sensorProtocol,
-    required this.onSensorProtocol,
+    this.sensorProtocol = SensorProtocol.automatic,
+    this.onSensorProtocol,
   });
 
   /// The name the owner gave the vehicle these pressures belong to.
@@ -41,7 +41,7 @@ class SettingsSheet extends StatefulWidget {
   final ValueChanged<bool> onHaptics;
   final ValueChanged<bool> onAnimations;
   final SensorProtocol sensorProtocol;
-  final ValueChanged<SensorProtocol> onSensorProtocol;
+  final ValueChanged<SensorProtocol>? onSensorProtocol;
 
   @override
   State<SettingsSheet> createState() => _SettingsSheetState();
@@ -221,7 +221,7 @@ class _SettingsSheetState extends State<SettingsSheet> {
             ),
         ],
         onChanged: (protocol) {
-          if (protocol != null) widget.onSensorProtocol(protocol);
+          if (protocol != null) widget.onSensorProtocol?.call(protocol);
         },
       ),
 
