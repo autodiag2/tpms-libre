@@ -235,6 +235,8 @@ class _HomePageState extends State<HomePage> {
               animations: model.animations,
               onHaptics: model.setHaptics,
               onAnimations: model.setAnimations,
+              sensorProtocol: widget.scanner.protocol,
+              onSensorProtocol: widget.scanner.setProtocol,
             ),
           );
         },
