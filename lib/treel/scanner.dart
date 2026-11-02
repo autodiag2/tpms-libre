@@ -1,12 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:universal_ble/universal_ble.dart';
 
 import 'location_services.dart';
 import 'model.dart';
 import 'reading.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 enum ScanStatus {
   idle,
@@ -239,6 +239,8 @@ class TreelScanner extends ChangeNotifier {
       rssi: device.rssi ?? -127,
       protocol: _protocol,
       name: device.name,
+      deviceId: device.deviceId,
+      services: device.services,
     );
     if (reading != null) model.ingest(reading);
   }
