@@ -113,6 +113,29 @@ void main() {
     }
   });
 
+  testWidgets('protocol selector fits a narrow sheet at large text', (
+    tester,
+  ) async {
+    await pumpSheet(
+      tester,
+      size: const Size(320, 600),
+      textScale: 2.0,
+      layout: WheelLayout.car,
+    );
+    final selector = find.byType(DropdownButtonFormField<SensorProtocol>);
+    expect(selector, findsOneWidget);
+    await tester.ensureVisible(selector);
+    await tester.pumpAndSettle();
+
+    final rect = tester.getRect(selector);
+    expect(rect.left, greaterThanOrEqualTo(Space.margin));
+    expect(rect.right, lessThanOrEqualTo(320 - Space.margin));
+
+    await tester.tap(selector);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('it scrolls rather than clipping its contents', (tester) async {
     await pumpSheet(tester, size: const Size(400, 640), textScale: 1.0);
     expect(find.text('Target pressure'), findsOneWidget);
