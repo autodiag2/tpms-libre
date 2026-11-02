@@ -280,10 +280,10 @@ class TreelScanner extends ChangeNotifier {
       try {
         await device.connect().timeout(const Duration(seconds: 10));
         connected = true;
-        final write = await device.getCharacteristic(_teslaService, _teslaWrite);
+        final write = await device.getCharacteristic(_teslaWrite, service: _teslaService);
         final indication = await device.getCharacteristic(
-          _teslaService,
           _teslaIndicate,
+          service: _teslaService,
         );
         Completer<TeslaTpmsPayload>? pending;
         TeslaTpmsPayload? earlyReading;
@@ -331,8 +331,8 @@ class TreelScanner extends ChangeNotifier {
         await updates?.cancel();
         try {
           final indication = await device.getCharacteristic(
-            _teslaService,
             _teslaIndicate,
+            service: _teslaService,
           );
           await indication.unsubscribe();
         } catch (_) {
