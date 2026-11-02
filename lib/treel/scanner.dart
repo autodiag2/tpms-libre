@@ -6,6 +6,7 @@ import 'package:universal_ble/universal_ble.dart';
 import 'location_services.dart';
 import 'model.dart';
 import 'reading.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 enum ScanStatus {
   idle,
@@ -30,6 +31,18 @@ class TreelScanner extends ChangeNotifier {
   TreelScanner(this.model);
 
   final TreelModel model;
+
+  static const _protocolPreference = 'sensorProtocol';
+  SensorProtocol _protocol = SensorProtocol.automatic;
+
+  SensorProtocol get protocol => _protocol;
+
+  Future<void> setProtocol(SensorProtocol protocol) async {
+    _protocol = protocol;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_protocolPreference, protocol.id);
+    notifyListeners();
+  }
 
   ScanStatus _status = ScanStatus.idle;
   String? _message;
@@ -86,6 +99,11 @@ class TreelScanner extends ChangeNotifier {
         _evaluate();
       });
 
+      final prefs = await SharedPreferences.getInstance();
+      _protocol = SensorProtocol.values.firstWhere(
+        (p) => p.id == prefs.getString(_protocolPreference),
+        orElse: () => SensorProtocol.automatic,
+      );
       _adapter = await UniversalBle.getBluetoothAvailabilityState();
       _locationOn = await LocationServices.isEnabled() ?? true;
       await _evaluate();
@@ -214,9 +232,14 @@ class TreelScanner extends ChangeNotifier {
   }
 
   void _onDevice(BleDevice device) {
-    final reading = decodeTreel({
-      for (final m in device.manufacturerDataList) m.companyId: m.payload,
-    }, rssi: device.rssi ?? -127);
+    final reading = decodeSensor(
+      {
+        for (final m in device.manufacturerDataList) m.companyId: m.payload,
+      },
+      rssi: device.rssi ?? -127,
+      protocol: _protocol,
+      name: device.name,
+    );
     if (reading != null) model.ingest(reading);
   }
 
