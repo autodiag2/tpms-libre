@@ -22,7 +22,7 @@ void main() {
 
   test('decodes Tesla awake advertisements', () {
     final reading = decodeTeslaAdvertisement(
-      {teslaManufacturerId: hex('0102051E02450B')},
+      {teslaManufacturerId: hex('0102051E0245EA0B')},
       rssi: -60,
       deviceId: 'BC:6A:29:10:20:30',
     );
@@ -30,6 +30,19 @@ void main() {
     expect(reading!.sensorId, 'tesla-bc6a29102030');
     expect(reading.psi, 64);
     expect(reading.celsius, 19);
+  });
+
+  test('rejects truncated Tesla awake advertisements', () {
+    final frame = hex('0102051E02450B');
+    expect(isTeslaTpmsAdvertisement(frame), isFalse);
+    expect(
+      decodeTeslaAdvertisement(
+        {teslaManufacturerId: frame},
+        rssi: -60,
+        deviceId: 'BC:6A:29:10:20:30',
+      ),
+      isNull,
+    );
   });
 
   test('decodes Tesla TPData GATT indications', () {
