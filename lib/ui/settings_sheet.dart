@@ -211,7 +211,7 @@ class _SettingsSheetState extends State<SettingsSheet> {
         width: double.infinity,
         child: DropdownButtonFormField<SensorProtocol>(
           isExpanded: true,
-          value: widget.sensorProtocol,
+          initialValue: widget.sensorProtocol,
           decoration: const InputDecoration(
             labelText: 'TPMS sensor protocol',
             helperText: 'Automatic detects supported broadcast formats.',
