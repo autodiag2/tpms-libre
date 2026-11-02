@@ -25,8 +25,12 @@ Android 7 or later, on a phone with Bluetooth LE.
 
 - **JK Tyre Treel**: the car and two-wheeler sensors sold with the *SMART TYRE
   CAR & BIKE* / *Treel Care* apps.
+- **ZEEPIN / TP630**: the BLE sensors decoded in [ra6070/BLE-TPMS](https://github.com/ra6070/BLE-TPMS).
+- **BR**: the BLE format documented in [andi38/TPMS](https://github.com/andi38/TPMS).
 
-Decoders for other BLE sensors are welcome; see [How it works](#how-it-works).
+The app attempts to identify these formats from their advertisement signatures.
+Choose a protocol manually under Settings → TPMS sensor protocol when a
+platform or sensor does not expose the identifying fields.
 
 ## Features
 
@@ -89,9 +93,20 @@ Sensors report often while the wheel turns and every few minutes when parked.
 The battery level is not in this frame, presumably in a second, encrypted
 advertisement, so the app does not show one.
 
-The decoder is [`lib/treel/reading.dart`](lib/treel/reading.dart). Another
-sensor needs a decoder that turns one advertisement into an id, a pressure and
-a temperature.
+The decoders are in [`lib/treel/reading.dart`](lib/treel/reading.dart).
+
+ZEEPIN / TP630 uses company id `0x0001` and a 16-byte payload. The sensor
+address is carried in the first six bytes; pressure and temperature are
+32-bit little-endian values scaled by 1000 kPa and 100 °C respectively, as
+described by the upstream project.
+
+BR uses service UUID `0x27a5`, company id `0x1d28`, and a five-byte
+manufacturer payload. The decoder follows the upstream Python example: byte 0
+is temperature, bytes 1–2 are pressure, converted with its documented
+`(raw - 145) / 145` bar formula. The final two bytes are not checked because
+the upstream repository does not document the checksum algorithm. The BLE
+device identifier is used as the sensor id because the advertisement payload
+does not contain a decoded sensor identifier.
 
 ## Building
 
